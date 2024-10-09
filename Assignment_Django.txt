@@ -1,0 +1,143 @@
+Question 1:  By default are django signals executed synchronously or asynchronously? Please
+ support your answer with a code snippet that conclusively proves your stance. The code does
+ not need to be elegant and production ready, we just need to understand your logic.
+
+Ans:  By default, Django signals are executed synchronously. This means that when a signal is sent, the associated receiver function is called immediately and blocks further execution until it completes.
+code:
+ # models.py
+import time
+from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+# A simple model
+class MyModel(models.Model):
+    name = models.CharField(max_length=100)
+
+# Signal receiver function
+@receiver(post_save, sender=MyModel)
+def my_receiver(sender, instance, **kwargs):
+    print("Signal received, starting delay...")
+    time.sleep(5)  # Simulate a delay
+    print("Signal processing done.")
+
+# views.py or any other code where you create the model instance
+from .models import MyModel
+
+print("Before creating the model instance...")
+instance = MyModel.objects.create(name="Test Instance")
+print("After creating the model instance.")
+
+
+
+ Question 2: Do django signals run in the same thread as the caller? Please support your
+ answer with a code snippet that conclusively proves your stance. The code does not need to be
+ elegant and production ready, we just need to understand your logic.
+
+Ans:Yes, Django signals run in the same thread as the caller by default. To demonstrate this, we can create a simple example where we print the current thread both in the caller function and inside the signal handler. If the threads are the same, it will prove that Django signals run in the same thread as the caller.
+
+code:# models.py
+import threading
+from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+# A simple model
+class MyModel(models.Model):
+    name = models.CharField(max_length=100)
+
+# Signal receiver function
+@receiver(post_save, sender=MyModel)
+def my_receiver(sender, instance, **kwargs):
+    print(f"Signal receiver thread: {threading.current_thread().name}")
+
+# views.py or any other code where you create the model instance
+from .models import MyModel
+import threading
+
+print(f"Main thread: {threading.current_thread().name}")
+instance = MyModel.objects.create(name="Test Instance")
+
+
+Question 3: By default do django signals run in the same database transaction as the caller?
+ Please support your answer with a code snippet that conclusively proves your stance. The code
+ does not need to be elegant and production ready, we just need to understand your logic.
+
+Ans:Yes, Django signals by default run in the same database transaction as the caller. This means that if the signal handler tries to access the database, it will be part of the same transaction context as the code that triggered the signal. If the transaction fails or is rolled back, changes made in the signal handler will also be rolled back.
+
+
+code:
+# models.py
+from django.db import models, transaction
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+# A simple model
+class MyModel(models.Model):
+    name = models.CharField(max_length=100)
+
+# Signal receiver function that performs a database operation
+@receiver(post_save, sender=MyModel)
+def my_receiver(sender, instance, **kwargs):
+    # Modify the instance within the signal
+    print("Signal handler: Modifying instance in the database.")
+    instance.name = "Modified by Signal"
+    instance.save()  # This should be part of the same transaction
+
+# views.py or any other code where you create the model instance
+from .models import MyModel
+
+try:
+    with transaction.atomic():  # Start an explicit transaction
+        print("Main block: Creating model instance.")
+        instance = MyModel.objects.create(name="Test Instance")
+        
+        print("Main block: Raising an exception to trigger rollback.")
+        raise Exception("Simulating an error, transaction should be rolled back.")
+except Exception as e:
+    print(f"Exception occurred: {e}")
+
+# Verify if the signal's changes were committed to the database
+if MyModel.objects.filter(name="Modified by Signal").exists():
+    print("Signal changes were committed (not rolled back).")
+else:
+    print("Signal changes were rolled back with the transaction.")
+
+
+
+
+
+
+
+					 Topic: Custom Classes in Python
+
+
+class Rectangle:
+    def __init__(self, length: int, width: int):
+        self.length = length
+        self.width = width
+
+    # Defining the __iter__ method to make the object iterable
+    def __iter__(self):
+        # Create a list of the required format for iteration
+        self._attributes = [{'length': self.length}, {'width': self.width}]
+        self._index = 0  # Initialize an index for iteration
+        return self
+
+    # Defining the __next__ method for iteration
+    def __next__(self):
+        if self._index < len(self._attributes):
+            result = self._attributes[self._index]
+            self._index += 1
+            return result
+        else:
+            raise StopIteration
+
+# Example usage:
+rect = Rectangle(10, 5)
+
+# Iterating over the instance
+for attr in rect:
+    print(attr)
+
+
